@@ -4,6 +4,9 @@
 #define MAXCPU 200   /* bir surecin girilebilecek en buyuk CPU suresi */
 #define MAXG 5000    /* Gantt'a eklenebilecek en fazla blok sayisi */
 #define BLOK_SATIR 6 /* Gantt'ta bir satirdaki en fazla blok sayisi */
+#define RENKLI                                                                 \
+  1 /* 1: renkli arayuz, 0: duz metin (ANSI desteklemeyen                      \
+       terminaller icin) */
 
 /* ---------- GLOBAL DEGISKENLER ----------
    Gantt semasi uc algoritma tarafindan ve yazdirma fonksiyonu tarafindan
@@ -15,6 +18,62 @@ int ganttBit[MAXG]; /* blogun bitis zamani */
 int ganttSayac;     /* simdiye kadar eklenen blok sayisi */
 int baglamSayac;    /* baglam degisimi sayisi */
 int sonSurec;       /* en son calisan surecin numarasi (hic yoksa 0) */
+
+/* ---------- ARAYUZ YARDIMCI FONKSIYONLARI ----------
+   Terminali ANSI kacis kodlariyla temizler ve renklendirir. Bunlar sadece
+   printf ile yazilan ozel karakter dizileridir, ek kutuphane gerekmez. */
+
+/* Ekrani temizler ve imleci sol ust kosesine goturur. */
+void ekranTemizle(void) {
+  if (RENKLI) {
+    printf("\033[2J\033[H");
+  } else {
+    printf("\n\n");
+  }
+}
+
+/* Yazi rengini fg, arka plan rengini bg yapar (ANSI renk kodlari). */
+void renkAc(int fg, int bg) {
+  if (RENKLI) {
+    printf("\033[%d;%dm", fg, bg);
+  }
+}
+
+/* Kalin ve fg renginde yazi baslatir. */
+void yaziRengiAc(int fg) {
+  if (RENKLI) {
+    printf("\033[1;%dm", fg);
+  }
+}
+
+/* Tum renk ve bicim ayarlarini kapatir. */
+void renkKapat(void) {
+  if (RENKLI) {
+    printf("\033[0m");
+  }
+}
+
+/* Surec numarasina gore renk secer (6 renk, sirayla tekrar eder). */
+void surecRengiAc(int surecNo) {
+  int bg = 41 + (surecNo - 1) % 6;
+  int fg = (bg == 42 || bg == 43 || bg == 46) ? 30 : 97;
+  renkAc(fg, bg);
+}
+
+/* Girdi satirinin kalanini okuyup atar (scanf'ten sonra kalan Enter'i
+   temizler). */
+void satirTemizle(void) {
+  int c;
+  while ((c = getchar()) != '\n' && c != EOF) {
+  }
+}
+
+/* Kullanici Enter'a basana kadar bekler. */
+void enterBekle(void) {
+  printf("\nDevam etmek icin Enter'a basin...");
+  fflush(stdout);
+  satirTemizle();
+}
 
 /* Surec sayisini, her surecin gelis zamanini ve CPU suresini klavyeden
    okur. Dizileri doldurur, surec sayisini *n ile geri verir. */
@@ -48,6 +107,7 @@ int quantumOku(void) {
     printf("\nRound Robin zaman dilimi (quantum, >= 1): ");
     scanf("%d", &q);
   } while (q < 1);
+  satirTemizle();
   return q;
 }
 
@@ -79,15 +139,18 @@ void ganttEkle(int surecNo, int bas, int bit) {
 /* Gantt semasini [P1 0-5] ve [BOS 18-20] bicimlerinde yazdirir.
    Her satirda en fazla BLOK_SATIR blok bulunur. */
 void ganttYazdir(void) {
-  printf("\nGantt Semasi:\n");
+  printf("\nGantt Semasi:\n\n");
   for (int i = 0; i < ganttSayac; i++) {
     if (ganttNo[i] == 0) {
-      printf("[BOS %d-%d]", ganttBas[i], ganttBit[i]);
+      renkAc(97, 100);
+      printf(" [BOS %d-%d] ", ganttBas[i], ganttBit[i]);
     } else {
-      printf("[P%d %d-%d]", ganttNo[i], ganttBas[i], ganttBit[i]);
+      surecRengiAc(ganttNo[i]);
+      printf(" [P%d %d-%d] ", ganttNo[i], ganttBas[i], ganttBit[i]);
     }
+    renkKapat();
     if ((i + 1) % BLOK_SATIR == 0 || i == ganttSayac - 1) {
-      printf("\n");
+      printf("\n\n");
     } else {
       printf(" ");
     }
@@ -235,11 +298,16 @@ void hesapla(int gelis[], int cpu[], int bitis[], int donus[], int bekleme[],
 void tabloYazdir(int no[], int gelis[], int cpu[], int bitis[], int donus[],
                  int bekleme[], int n) {
   printf("\nSonuc Tablosu:\n");
-  printf("%-6s %-7s %-6s %-7s %-7s %-8s\n", "Surec", "Gelis", "CPU", "Bitis",
+  yaziRengiAc(36);
+  printf("%-5s %-7s %-6s %-7s %-7s %-8s\n", "Surec", "Gelis", "CPU", "Bitis",
          "Donus", "Bekleme");
+  renkKapat();
   for (int i = 0; i < n; i++) {
-    printf("P%-5d %-7d %-6d %-7d %-7d %-8d\n", no[i], gelis[i], cpu[i],
-           bitis[i], donus[i], bekleme[i]);
+    surecRengiAc(no[i]);
+    printf(" P%-2d ", no[i]);
+    renkKapat();
+    printf(" %-7d %-6d %-7d %-7d %-8d\n", gelis[i], cpu[i], bitis[i], donus[i],
+           bekleme[i]);
   }
 }
 
@@ -282,20 +350,72 @@ double raporYazdir(int no[], int gelis[], int cpu[], int bitis[], int donus[],
 void baslikYazdir(const char ad[]) {
   static int sayac = 0;
   sayac++;
-  printf("\n=========================================\n");
+  yaziRengiAc(36);
+  printf("=========================================\n");
   printf(" %d. Algoritma: %s\n", sayac, ad);
   printf("=========================================\n");
+  renkKapat();
+}
+
+/* Bir degeri, en buyuk degere oranli uzunlukta (en fazla 40 karakter) renkli
+   cubuk olarak yazdirir. Renk kapaliysa cubuk '#' karakteriyle cizilir. */
+void cubukYazdir(const char ad[], double deger, double enBuyuk, int bg) {
+  int uzunluk = 0;
+
+  if (enBuyuk > 0) {
+    uzunluk = (int)(deger / enBuyuk * 40 + 0.5);
+  }
+  printf("%-12s ", ad);
+  renkAc(97, bg);
+  for (int i = 0; i < uzunluk; i++) {
+    putchar(RENKLI ? ' ' : '#');
+  }
+  renkKapat();
+  printf(" %.2f\n", deger);
+}
+
+/* Girilen surec bilgilerini ve zaman dilimini bir tablo halinde yazar. */
+void girdiOzetiYazdir(int no[], int gelis[], int cpu[], int n, int quantum) {
+  yaziRengiAc(36);
+  printf("=========================================\n");
+  printf(" GIRILEN SUREC BILGILERI\n");
+  printf("=========================================\n");
+  renkKapat();
+  printf("\n%-5s %-7s %-6s\n", "Surec", "Gelis", "CPU");
+  for (int i = 0; i < n; i++) {
+    surecRengiAc(no[i]);
+    printf(" P%-2d ", no[i]);
+    renkKapat();
+    printf(" %-7d %-6d\n", gelis[i], cpu[i]);
+  }
+  printf("\nRound Robin zaman dilimi (quantum): %d\n", quantum);
 }
 
 /* Uc algoritmanin ortalama bekleme surelerini yan yana yazar ve en dusugu
    belirtir. Esitlikte FCFS, SJF, Round Robin sirasiyla ilki secilir. */
 void karsilastir(double ortFcfs, double ortSjf, double ortRr) {
-  printf("\n=========================================\n");
+  double enBuyuk = ortFcfs;
+  if (ortSjf > enBuyuk) {
+    enBuyuk = ortSjf;
+  }
+  if (ortRr > enBuyuk) {
+    enBuyuk = ortRr;
+  }
+
+  yaziRengiAc(36);
+  printf("=========================================\n");
   printf(" KARSILASTIRMA (ortalama bekleme suresi)\n");
   printf("=========================================\n");
-  printf("FCFS: %.2f    SJF: %.2f    Round Robin: %.2f\n", ortFcfs, ortSjf,
+  renkKapat();
+  printf("\nFCFS: %.2f    SJF: %.2f    Round Robin: %.2f\n\n", ortFcfs, ortSjf,
          ortRr);
 
+  cubukYazdir("FCFS", ortFcfs, enBuyuk, 44);
+  cubukYazdir("SJF", ortSjf, enBuyuk, 42);
+  cubukYazdir("Round Robin", ortRr, enBuyuk, 45);
+
+  printf("\n");
+  yaziRengiAc(32);
   if (ortFcfs <= ortSjf && ortFcfs <= ortRr) {
     printf("En dusuk ortalama bekleme: FCFS\n");
   } else if (ortSjf <= ortRr) {
@@ -303,6 +423,7 @@ void karsilastir(double ortFcfs, double ortSjf, double ortRr) {
   } else {
     printf("En dusuk ortalama bekleme: Round Robin\n");
   }
+  renkKapat();
 }
 
 int main() {
@@ -311,25 +432,43 @@ int main() {
   int n, quantum;
   double ortFcfs, ortSjf, ortRr;
 
+  ekranTemizle();
+  yaziRengiAc(36);
+  printf("=========================================\n");
+  printf(" CPU SUREC ZAMANLAYICI SIMULATORU\n");
+  printf("=========================================\n\n");
+  renkKapat();
   veriOku(no, gelis, cpu, &n);
   quantum = quantumOku();
 
+  ekranTemizle();
+  girdiOzetiYazdir(no, gelis, cpu, n, quantum);
+  enterBekle();
+
+  ekranTemizle();
   sifirla();
   baslikYazdir("FCFS");
   fcfs(no, gelis, cpu, bitis, n);
   ortFcfs = raporYazdir(no, gelis, cpu, bitis, donus, bekleme, n);
+  enterBekle();
 
+  ekranTemizle();
   sifirla();
   baslikYazdir("SJF (kesintisiz)");
   sjf(no, gelis, cpu, bitis, n);
   ortSjf = raporYazdir(no, gelis, cpu, bitis, donus, bekleme, n);
+  enterBekle();
 
+  ekranTemizle();
   sifirla();
   baslikYazdir("Round Robin");
   printf("Zaman dilimi (quantum): %d\n", quantum);
   roundRobin(no, gelis, cpu, bitis, n, quantum);
   ortRr = raporYazdir(no, gelis, cpu, bitis, donus, bekleme, n);
+  enterBekle();
 
+  ekranTemizle();
   karsilastir(ortFcfs, ortSjf, ortRr);
+  printf("\n");
   return 0;
 }
