@@ -1,29 +1,18 @@
 #include <stdio.h>
 
-#define MAX 20       /* en fazla surec sayisi */
-#define MAXCPU 200   /* bir surecin girilebilecek en buyuk CPU suresi */
-#define MAXG 5000    /* Gantt'a eklenebilecek en fazla blok sayisi */
-#define BLOK_SATIR 6 /* Gantt'ta bir satirdaki en fazla blok sayisi */
-#define RENKLI                                                                 \
-  1 /* 1: renkli arayuz, 0: duz metin (ANSI desteklemeyen                      \
-       terminaller icin) */
+#define MAX 20
+#define MAXCPU 200
+#define MAXG 5000
+#define BLOK_SATIR 6
+#define RENKLI 1
 
-/* ---------- GLOBAL DEGISKENLER ----------
-   Gantt semasi uc algoritma tarafindan ve yazdirma fonksiyonu tarafindan
-   ortak kullanilir; hepsini parametreyle tasimak yerine global tutuyoruz.
-   Her algoritmadan once sifirla() ile sifirlanmalidir. */
-int ganttNo[MAXG];  /* blokta calisan surec no (bosta icin 0) */
-int ganttBas[MAXG]; /* blogun baslangic zamani */
-int ganttBit[MAXG]; /* blogun bitis zamani */
-int ganttSayac;     /* simdiye kadar eklenen blok sayisi */
-int baglamSayac;    /* baglam degisimi sayisi */
-int sonSurec;       /* en son calisan surecin numarasi (hic yoksa 0) */
+int ganttNo[MAXG];
+int ganttBas[MAXG];
+int ganttBit[MAXG];
+int ganttSayac;
+int baglamSayac;
+int sonSurec;
 
-/* ---------- ARAYUZ YARDIMCI FONKSIYONLARI ----------
-   Terminali ANSI kacis kodlariyla temizler ve renklendirir. Bunlar sadece
-   printf ile yazilan ozel karakter dizileridir, ek kutuphane gerekmez. */
-
-/* Ekrani temizler ve imleci sol ust kosesine goturur. */
 void ekranTemizle(void) {
   if (RENKLI) {
     printf("\033[2J\033[H");
@@ -32,51 +21,42 @@ void ekranTemizle(void) {
   }
 }
 
-/* Yazi rengini fg, arka plan rengini bg yapar (ANSI renk kodlari). */
 void renkAc(int fg, int bg) {
   if (RENKLI) {
     printf("\033[%d;%dm", fg, bg);
   }
 }
 
-/* Kalin ve fg renginde yazi baslatir. */
 void yaziRengiAc(int fg) {
   if (RENKLI) {
     printf("\033[1;%dm", fg);
   }
 }
 
-/* Tum renk ve bicim ayarlarini kapatir. */
 void renkKapat(void) {
   if (RENKLI) {
     printf("\033[0m");
   }
 }
 
-/* Surec numarasina gore renk secer (6 renk, sirayla tekrar eder). */
 void surecRengiAc(int surecNo) {
   int bg = 41 + (surecNo - 1) % 6;
   int fg = (bg == 42 || bg == 43 || bg == 46) ? 30 : 97;
   renkAc(fg, bg);
 }
 
-/* Girdi satirinin kalanini okuyup atar (scanf'ten sonra kalan Enter'i
-   temizler). */
 void satirTemizle(void) {
   int c;
   while ((c = getchar()) != '\n' && c != EOF) {
   }
 }
 
-/* Kullanici Enter'a basana kadar bekler. */
 void enterBekle(void) {
   printf("\nDevam etmek icin Enter'a basin...");
   fflush(stdout);
   satirTemizle();
 }
 
-/* Surec sayisini, her surecin gelis zamanini ve CPU suresini klavyeden
-   okur. Dizileri doldurur, surec sayisini *n ile geri verir. */
 void veriOku(int no[], int gelis[], int cpu[], int *n) {
   do {
     printf("Lutfen surec sayisini girin (1 - %d): ", MAX);
@@ -100,7 +80,6 @@ void veriOku(int no[], int gelis[], int cpu[], int *n) {
   }
 }
 
-/* Round Robin icin zaman dilimini (quantum) okur ve return ile verir. */
 int quantumOku(void) {
   int q;
   do {
@@ -111,17 +90,12 @@ int quantumOku(void) {
   return q;
 }
 
-/* Gantt sayaclarini ve baglam degisimi sayacini sifirlar.
-   Her algoritmadan once cagrilir. */
 void sifirla(void) {
   ganttSayac = 0;
   baglamSayac = 0;
   sonSurec = 0;
 }
 
-/* Gantt'a bir blok ekler. surecNo = 0 ise bosta blokudur.
-   Blok, kendinden onceki son SUREC blogundan farkli bir surece aitse
-   baglam degisimi sayaci 1 artar (ilk surec ve bosta sayilmaz). */
 void ganttEkle(int surecNo, int bas, int bit) {
   ganttNo[ganttSayac] = surecNo;
   ganttBas[ganttSayac] = bas;
@@ -136,8 +110,6 @@ void ganttEkle(int surecNo, int bas, int bit) {
   }
 }
 
-/* Gantt semasini [P1 0-5] ve [BOS 18-20] bicimlerinde yazdirir.
-   Her satirda en fazla BLOK_SATIR blok bulunur. */
 void ganttYazdir(void) {
   printf("\nGantt Semasi:\n\n");
   for (int i = 0; i < ganttSayac; i++) {
@@ -157,8 +129,6 @@ void ganttYazdir(void) {
   }
 }
 
-/* Aktif (bitmemis) surecler arasindan en erken gelis zamanini bulur.
-   aktif[i] != 0 ise i. surec bitmemis demektir. */
 int enErkenGelis(int gelis[], int aktif[], int n) {
   int enErken = -1;
   for (int i = 0; i < n; i++) {
@@ -169,10 +139,6 @@ int enErkenGelis(int gelis[], int aktif[], int n) {
   return enErken;
 }
 
-/* Surec INDEKSLERINI gelis zamanina gore siralar (sira[] dizisine).
-   Asil diziler degismez, boylece paralel diziler tutarli kalir.
-   Araya ekleme siralamasi kararlidir: gelis esitse numarasi kucuk olan
-   (indeksi kucuk olan) onde kalir. */
 void gelisSirala(int gelis[], int sira[], int n) {
   for (int i = 0; i < n; i++) {
     sira[i] = i;
@@ -188,8 +154,6 @@ void gelisSirala(int gelis[], int sira[], int n) {
   }
 }
 
-/* FCFS: surecler geliste gore, kesintisiz calisir.
-   Gantt'i doldurur, bitis[] dizisini doldurur. */
 void fcfs(int no[], int gelis[], int cpu[], int bitis[], int n) {
   int sira[MAX];
   int saat = 0;
@@ -207,9 +171,6 @@ void fcfs(int no[], int gelis[], int cpu[], int bitis[], int n) {
   }
 }
 
-/* SJF (kesintisiz): CPU bosaldiginda gelmis ve bitmemis surecler arasindan
-   CPU suresi en kisa olan secilir. Esitlikte gelis zamani erken olan,
-   o da esitse numarasi kucuk olan secilir. */
 void sjf(int no[], int gelis[], int cpu[], int bitis[], int n) {
   int bekliyor[MAX];
   int saat = 0;
@@ -231,7 +192,7 @@ void sjf(int no[], int gelis[], int cpu[], int bitis[], int n) {
     }
 
     if (secilen == -1) {
-      /* Kimse gelmemis: CPU bosta, en erken gelise atla */
+
       int enErken = enErkenGelis(gelis, bekliyor, n);
       ganttEkle(0, saat, enErken);
       saat = enErken;
@@ -245,10 +206,6 @@ void sjf(int no[], int gelis[], int cpu[], int bitis[], int n) {
   }
 }
 
-/* Round Robin: surecler P1..Pn sirasiyla dolasilir. Sirasi gelen surec
-   gelmis ve bitmemisse en fazla quantum kadar calisir, degilse atlanir.
-   Bir turda hic surec calismadiysa CPU bostadir: saat en erken gelise
-   atlar ve yeni tur P1'den baslar. */
 void roundRobin(int no[], int gelis[], int cpu[], int bitis[], int n,
                 int quantum) {
   int kalanSure[MAX];
@@ -284,8 +241,6 @@ void roundRobin(int no[], int gelis[], int cpu[], int bitis[], int n,
   }
 }
 
-/* Bitis zamanlarindan donus (bitis - gelis) ve bekleme (donus - cpu)
-   sürelerini hesaplayip donus[] ve bekleme[] dizilerine yazar. */
 void hesapla(int gelis[], int cpu[], int bitis[], int donus[], int bekleme[],
              int n) {
   for (int i = 0; i < n; i++) {
@@ -294,7 +249,6 @@ void hesapla(int gelis[], int cpu[], int bitis[], int donus[], int bekleme[],
   }
 }
 
-/* Sonuc tablosunu surec numarasi sirasiyla yazdirir. */
 void tabloYazdir(int no[], int gelis[], int cpu[], int bitis[], int donus[],
                  int bekleme[], int n) {
   printf("\nSonuc Tablosu:\n");
@@ -311,9 +265,6 @@ void tabloYazdir(int no[], int gelis[], int cpu[], int bitis[], int donus[],
   }
 }
 
-/* Ortalama donus ve ortalama bekleme suresini hesaplar.
-   Iki sonuc dondurmek gerektigi icin return yerine pointer parametre
-   kullanir: sonuclar *ortDonus ve *ortBekleme ile geri verilir. */
 void ortalamalar(int donus[], int bekleme[], int n, double *ortDonus,
                  double *ortBekleme) {
   int toplamDonus = 0;
@@ -327,8 +278,6 @@ void ortalamalar(int donus[], int bekleme[], int n, double *ortDonus,
   *ortBekleme = (double)toplamBekleme / n;
 }
 
-/* Bir algoritmanin tum sonucunu yazdirir: hesaplama, Gantt, tablo ve ozet.
-   Ortalama bekleme suresini return ile geri verir (karsilastirma icin). */
 double raporYazdir(int no[], int gelis[], int cpu[], int bitis[], int donus[],
                    int bekleme[], int n) {
   double ortDonus;
@@ -345,8 +294,6 @@ double raporYazdir(int no[], int gelis[], int cpu[], int bitis[], int donus[],
   return ortBekleme;
 }
 
-/* Algoritma basligini yazdirir. static sayac, fonksiyon her cagrildiginda
-   sifirlanmaz: scope sadece bu fonksiyon, omru ise programin sonuna kadar. */
 void baslikYazdir(const char ad[]) {
   static int sayac = 0;
   sayac++;
@@ -357,8 +304,6 @@ void baslikYazdir(const char ad[]) {
   renkKapat();
 }
 
-/* Bir degeri, en buyuk degere oranli uzunlukta (en fazla 40 karakter) renkli
-   cubuk olarak yazdirir. Renk kapaliysa cubuk '#' karakteriyle cizilir. */
 void cubukYazdir(const char ad[], double deger, double enBuyuk, int bg) {
   int uzunluk = 0;
 
@@ -374,7 +319,6 @@ void cubukYazdir(const char ad[], double deger, double enBuyuk, int bg) {
   printf(" %.2f\n", deger);
 }
 
-/* Girilen surec bilgilerini ve zaman dilimini bir tablo halinde yazar. */
 void girdiOzetiYazdir(int no[], int gelis[], int cpu[], int n, int quantum) {
   yaziRengiAc(36);
   printf("=========================================\n");
@@ -391,8 +335,6 @@ void girdiOzetiYazdir(int no[], int gelis[], int cpu[], int n, int quantum) {
   printf("\nRound Robin zaman dilimi (quantum): %d\n", quantum);
 }
 
-/* Uc algoritmanin ortalama bekleme surelerini yan yana yazar ve en dusugu
-   belirtir. Esitlikte FCFS, SJF, Round Robin sirasiyla ilki secilir. */
 void karsilastir(double ortFcfs, double ortSjf, double ortRr) {
   double enBuyuk = ortFcfs;
   if (ortSjf > enBuyuk) {
